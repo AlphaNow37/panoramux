@@ -4,4 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy= { version="0.19", features = ["3d"], default-features = false }
+wgpu = { version = "29" }
+bytemuck = { version = "1.25.2", features = [
+    "derive",
+    "nightly_portable_simd",
+    "min_const_generics",
+] }
+rand = "0.10.2"
+winit = "0.30.13"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+pollster = "1.0.1"
