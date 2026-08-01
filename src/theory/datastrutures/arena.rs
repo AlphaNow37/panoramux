@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct ArenaIndex<T>(usize, PhantomData<T>);
 impl<T> ArenaIndex<T> {
+    pub const NONE: Self = Self(usize::MAX, PhantomData);
     pub fn to_int(self) -> usize {
         self.0
     }

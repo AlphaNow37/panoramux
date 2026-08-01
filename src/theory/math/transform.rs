@@ -1,5 +1,6 @@
 use crate::theory::math::traits::{Length, impl_vector_space_simd};
-use crate::theory::math::{Angle, Dir, Mat4, Vec3};
+use crate::theory::math::{Angle, Dir, Mat4, Vec2, Vec3};
+use crate::theory::utils::number_ext::F32_EPSILON;
 use std::fmt::{Debug, Display, Formatter};
 use std::simd::num::SimdFloat;
 use std::simd::prelude::SimdPartialOrd;
@@ -217,9 +218,10 @@ impl Transform {
                 + simd_swizzle!(
                     self.0,
                     [8, 9, 10, 3, 8, 9, 10, 3, 8, 9, 10, 3, 8, 9, 10, 3,]
-                ) * simd_swizzle!(tr.0, [
-                    2, 2, 2, 2, 6, 6, 6, 6, 10, 10, 10, 10, 14, 14, 14, 14,
-                ])
+                ) * simd_swizzle!(
+                    tr.0,
+                    [2, 2, 2, 2, 6, 6, 6, 6, 10, 10, 10, 10, 14, 14, 14, 14,]
+                )
                 + simd_swizzle!(self.0, [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 12, 13, 14, 3,]),
         )
     }
@@ -231,9 +233,10 @@ impl Transform {
     pub fn translate(self, by: Vec3) -> Self {
         // should be more performant than self*trans(by)
         let v = self.tr_vec(by);
-        self + Self(simd_swizzle!(v.0, [
-            3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 1, 2, 3,
-        ]))
+        self + Self(simd_swizzle!(
+            v.0,
+            [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 1, 2, 3,]
+        ))
     }
     pub fn rotate_around(self, axis: impl TryInto<Dir>, angle: Angle) -> Self {
         let Ok(dir) = axis.try_into() else {
@@ -259,12 +262,48 @@ impl Transform {
         poss.length()
     }
     pub fn with_rotation(self, other: Self) -> Self {
-        Self(simd_swizzle!(self.0, other.0, [
-            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 12, 13, 14, 15,
-        ]))
+        Self(simd_swizzle!(
+            self.0,
+            other.0,
+            [
+                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 12, 13, 14, 15,
+            ]
+        ))
     }
     pub fn with_trans(self, other: Self) -> Self {
         other.with_rotation(self)
+    }
+    pub fn swap_yz(self) -> Self {
+        Self(simd_swizzle!(
+            self.0,
+            [0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15]
+        ))
+    }
+    pub fn swap_xy(self) -> Self {
+        Self(simd_swizzle!(
+            self.0,
+            [4, 5, 6, 7, 0, 1, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15]
+        ))
+    }
+    pub fn swap_xz(self) -> Self {
+        Self(simd_swizzle!(
+            self.0,
+            [8, 9, 10, 11, 4, 5, 6, 7, 0, 1, 2, 3, 12, 13, 14, 15]
+        ))
+    }
+    /// new x = old z
+    pub fn swap_xyz(self) -> Self {
+        Self(simd_swizzle!(
+            self.0,
+            [8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15]
+        ))
+    }
+    /// new x = old y
+    pub fn swap_zyx(self) -> Self {
+        Self(simd_swizzle!(
+            self.0,
+            [4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3,  12, 13, 14, 15]
+        ))
     }
 }
 impl_vector_space_simd!(Transform(16));
@@ -329,6 +368,137 @@ impl Mul<Vec3> for Transform {
 impl MulAssign<Vec3> for Transform {
     fn mul_assign(&mut self, rhs: Vec3) {
         *self = self.scaled(rhs)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub struct Transform2 {
+    pub x: Vec2,
+    pub y: Vec2,
+    pub t: Vec2,
+}
+impl Transform2 {
+    pub const X: Self = Self::from_scalef(1., 0.);
+    pub const Y: Self = Self::from_scalef(0., 1.);
+    pub const ID: Self = Self::from_scalef(1., 1.);
+
+    pub const fn from_scalef(x: f32, y: f32) -> Self {
+        Self {
+            x: Vec2::new(x, 0.),
+            y: Vec2::new(0., y),
+            t: Vec2::ZERO,
+        }
+    }
+    pub fn from_scalev(vec: Vec2) -> Self {
+        Self::from_scalef(vec.x(), vec.y())
+    }
+    pub const fn from_transf(x: f32, y: f32) -> Self {
+        Self {
+            x: Vec2::X,
+            y: Vec2::Y,
+            t: Vec2::new(x, y),
+        }
+    }
+    pub const fn from_transv(vec: Vec2) -> Self {
+        Self::from_transf(vec.x(), vec.y())
+    }
+    /// View from the end of the vector, looking opposite way
+    pub fn from_rotate(angle: Angle) -> Self {
+        let x = angle.to_vec();
+        Self {
+            x,
+            y: x.rotate_ccw(),
+            t: Vec2::ZERO,
+        }
+    }
+    pub fn approx_eq(self, other: Self) -> bool {
+        (self.x - other.x).is_approx_zero()
+            && (self.y - other.y).is_approx_zero()
+            && (self.t - other.t).is_approx_zero()
+    }
+    pub fn tr_point(self, pt: Vec2) -> Vec2 {
+        self.tr_vec(pt) + self.t
+    }
+    pub fn tr_vec(self, vec: Vec2) -> Vec2 {
+        self.x * vec.x() + self.y * vec.y()
+    }
+    pub fn tr_tr(self, tr: Self) -> Self {
+        Self {
+            t: self.tr_point(tr.t),
+            x: self.tr_vec(tr.x),
+            y: self.tr_vec(tr.y),
+        }
+    }
+
+    pub fn translate(self, by: Vec2) -> Self {
+        Self {
+            x: self.x,
+            y: self.y,
+            t: self.tr_point(by),
+        }
+    }
+    pub fn rotate_around(self, angle: Angle) -> Self {
+        self * Self::from_rotate(angle)
+    }
+    pub fn inverse(self) -> Self {
+        let det = self.x.dot(self.y.rotate_cw());
+        debug_assert_ne!(det, 0., "Non reversible matrix !");
+        Self {
+            x: Vec2::new(self.y.y(), -self.x.y()) / det,
+            y: Vec2::new(-self.y.x(), self.x.x()) / det,
+            t: Vec2::ZERO,
+        }
+        .translate(-self.t)
+    }
+}
+impl Debug for Transform2 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Transform2(tr={:?}, x={:?}, y={:?})",
+            self.t,
+            self.x,
+            self.y,
+        )
+    }
+}
+impl Display for Transform2 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+impl Mul for Transform2 {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self::Output {
+        self.tr_tr(rhs)
+    }
+}
+impl MulAssign for Transform2 {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs
+    }
+}
+
+impl Add<Vec2> for Transform2 {
+    type Output = Self;
+    fn add(self, rhs: Vec2) -> Self::Output {
+        self.translate(rhs)
+    }
+}
+impl AddAssign<Vec2> for Transform2 {
+    fn add_assign(&mut self, rhs: Vec2) {
+        *self = self.translate(rhs)
+    }
+}
+impl Sub<Vec2> for Transform2 {
+    type Output = Self;
+    fn sub(self, rhs: Vec2) -> Self::Output {
+        self.translate(-rhs)
+    }
+}
+impl SubAssign<Vec2> for Transform2 {
+    fn sub_assign(&mut self, rhs: Vec2) {
+        *self = self.translate(-rhs)
     }
 }
 

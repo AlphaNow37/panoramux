@@ -9,6 +9,7 @@ pub mod tree;
 pub mod arena;
 pub mod priority_queue;
 pub mod union_find;
+pub mod skip_list;
 
 pub type RCell<T> = Rc<Cell<T>>;
 pub fn rcell<T>(val: T) -> RCell<T> {

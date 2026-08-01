@@ -174,7 +174,7 @@ pub struct PipelinesRegistry {
 }
 impl PipelinesRegistry {
     pub fn new(device: &wgpu::Device, surf_config: &wgpu::SurfaceConfiguration) -> Self {
-        Self {
+        let mut s = Self {
             shaders: Shaders::new(device),
             base_bindings: BaseBindings::new(device),
             depth_buffer: DepthBuffer::new(device, surf_config),
@@ -184,7 +184,13 @@ impl PipelinesRegistry {
             pending_materials_to_push: Vec::new(),
             next_material_id: 0,
             items: ItemStores::new(device),
-        }
+        };
+        let none_handle = s.add_material(Material {
+            name: "Debug material",
+            entry_point: "fs_none",
+        });
+        debug_assert_eq!(none_handle, MaterialHandle::NONE);
+        s
     }
     pub fn update(
         &mut self,

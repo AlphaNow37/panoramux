@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct ItemHandle<T>(ArenaIndex<T>);
 impl<T> ItemHandle<T> {
+    pub const N0NE: Self = Self(ArenaIndex::NONE);
     pub fn to_int(self) -> usize {
         self.0.to_int()
     }

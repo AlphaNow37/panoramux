@@ -10,6 +10,7 @@ pub mod vec4;
 pub mod sphere;
 pub mod const_fns;
 pub mod traits;
+pub mod polygon;
 
 pub use angle::*;
 pub use dir::*;

@@ -4,6 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ops::Index;
 use std::simd::Simd;
 use std::simd::num::SimdFloat;
+use crate::theory::math::Vec3;
 
 pub fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2::new(x, y)
@@ -23,17 +24,27 @@ impl Vec2 {
     pub fn translate(self, other: Self) -> Self {
         self + other
     }
-    pub fn x(self) -> f32 {
-        self.0[0]
+    pub const fn x(self) -> f32 {
+        self.0.to_array()[0]
     }
-    pub fn y(self) -> f32 {
-        self.0[1]
+    pub const fn y(self) -> f32 {
+        self.0.to_array()[1]
     }
     pub fn dot(self, other: Self) -> f32 {
         (self.0 * other.0).reduce_sum()
     }
     pub fn to_array(self) -> [f32; 2] {
         self.0.to_array()
+    }
+    pub const fn rotate_ccw(self) -> Self {
+        Self::new(-self.y(), self.x())
+    }
+    pub const fn rotate_cw(self) -> Self {
+        Self::new(self.y(), -self.x())
+    }
+    pub const fn to_vec3(self) -> Vec3 {Vec3::new(self.x(), self.y(), 0.)}
+    pub const fn extend(self, z: f32) -> Vec3 {
+        Vec3::new(self.x(), self.y(), z)
     }
 }
 impl_vector_space_simd!(Vec2(2));

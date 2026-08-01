@@ -73,7 +73,7 @@ pub trait Length: VectorSpace {
         0.99 < l && l < 1.01
     }
     fn is_approx_zero(self) -> bool {
-        self.length_squared() < 0.0001
+        self.length_squared() < F32_EPSILON
     }
 }
 
@@ -163,4 +163,5 @@ macro_rules! impl_vector_space_simd {
     };
 }
 pub(crate) use impl_vector_space_simd;
+use crate::theory::utils::number_ext::F32_EPSILON;
 

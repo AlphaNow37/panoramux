@@ -1,5 +1,6 @@
 pub mod plugins;
 
+use std::collections::HashMap;
 use crate::engine::components::camera::Camera;
 use crate::engine::pipelines::instance::InstancesBuffer;
 use crate::engine::pipelines::material::{Material, MaterialHandle};
